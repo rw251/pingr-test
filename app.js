@@ -1165,21 +1165,21 @@ var cht = {
           click: function(event) {
             selectSeriesFn();
 
-            if (cht.cloneToolTip) {
+            /*if (cht.cloneToolTip) {
               this.container.firstChild.removeChild(cht.cloneToolTip);
               cht.cloneToolTip = null;
             }
             if (cht.cloneToolTip2) {
               cht.cloneToolTip2.remove();
               cht.cloneToolTip2 = null;
-            }
+            }*/
 
             return false;
           }
         }
       },
       title: {
-        text: 'Patients not meeting the standard'
+        text: 'Patients with improvement opportunities'
       },
       subtitle: {
         text: document.ontouchstart === undefined ?
@@ -1210,7 +1210,7 @@ var cht = {
         animation: false,
 
         formatter: function() {
-          return this.point.desc.match(/.{1,40}[^ ]* ?/g).join("<br>");
+          return this.point.desc.replace(/<a[^h]+href=[\"'].*?[\"'][^h]*>(.*?)<\/a>/,"$1").match(/.{1,40}[^ ]* ?/g).join("<br>");
         },
 
         style: {
@@ -1238,7 +1238,7 @@ var cht = {
 
                 selectSeriesFn(this.category);
 
-                if (cht.cloneToolTip) {
+                /*if (cht.cloneToolTip) {
                   this.series.chart.container.firstChild.removeChild(cht.cloneToolTip);
                 }
                 if (cht.cloneToolTip2) {
@@ -1248,7 +1248,7 @@ var cht = {
                 this.series.chart.container.firstChild.appendChild(cht.cloneToolTip);
 
                 cht.cloneToolTip2 = $('.highcharts-tooltip').clone();
-                $(this.series.chart.container).append(cht.cloneToolTip2);
+                $(this.series.chart.container).append(cht.cloneToolTip2);*/
 
                 return false;
               }
@@ -1555,6 +1555,8 @@ var dt = {
     dt.indicators = file.indicators;
     dt.pathwayNames = {};
 
+    if(file.text) dt.text = file.text;
+
     dt.indicators.forEach(function(indicator) {
       var last = indicator.values[0].length-1;
       var pathwayId = indicator.id.split(".")[0];
@@ -1577,10 +1579,10 @@ var dt = {
       var dates = indicator.values[0].slice(Math.max(1,last-10), 10);
       //dates.reverse();
       indicator.dates = dates;
-      if (dt.text[pathwayId] && dt.text[pathwayId][pathwayStage] && dt.text[pathwayId][pathwayStage].standards[standard]) {
-        indicator.description = dt.text[pathwayId][pathwayStage].standards[standard].description;
-        indicator.tagline = dt.text[pathwayId][pathwayStage].standards[standard].tagline;
-        indicator.positiveMessage = dt.text[pathwayId][pathwayStage].standards[standard].positiveMessage;
+      if (dt.text.pathways[pathwayId] && dt.text.pathways[pathwayId][pathwayStage] && dt.text.pathways[pathwayId][pathwayStage].standards[standard]) {
+        indicator.description = dt.text.pathways[pathwayId][pathwayStage].standards[standard].description;
+        indicator.tagline = dt.text.pathways[pathwayId][pathwayStage].standards[standard].tagline;
+        indicator.positiveMessage = dt.text.pathways[pathwayId][pathwayStage].standards[standard].positiveMessage;
       } else {
         indicator.description = "No description specified";
         indicator.tagline = "";
@@ -3002,7 +3004,7 @@ var indicatorList = {
   show: function(panel, isAppend, loadContentFn) {
     data.getAllIndicatorData(function(indicators) {
       indicators.sort(function(a,b){
-        return a.performance - b.performance;
+        return a.performance.percentage - b.performance.percentage;
       });
       var tempMust = $('#overview-panel-table').html();
       var tmpl = require('templates/overview-table');
@@ -3585,6 +3587,10 @@ var ll = {
     var element = 'lifeline-chart';
     var elementId = '#' + element;
 
+    //Most recent max date of series minus one month or 1 year whichever is most
+    var minMaxDate=new Date();
+    minMaxDate.setMonth(minMaxDate.getMonth()-11);
+
     ll.destroy(elementId);
 
     var htmlElement = $('<div class="panel panel-default"><div class="panel-body"><div id="' + element + '"></div></div></div>');
@@ -3653,9 +3659,16 @@ var ll = {
           data: [],
           color: colour.next()
         };
+
+        var latestIntervalEndDate;
+
         $.each(task.intervals, function(j, interval) {
+          if(!latestIntervalEndDate) latestIntervalEndDate = interval.to;
+          else latestIntervalEndDate = Math.max(latestIntervalEndDate, interval.to);
           item.data.push([i + 0.49, interval.from, interval.to]);
         });
+
+        if(latestIntervalEndDate) minMaxDate = Math.min(latestIntervalEndDate, minMaxDate);
 
         series.push(item);
       });
@@ -3669,7 +3682,10 @@ var ll = {
       };
       var contactSeries = {};
       var eventSeries = {};
+      var latestContact;
       $.each(contacts, function(i, contact) {
+        if(!latestContact) latestContact = contact.time;
+        else latestContact = Math.max(latestContact, contact.time);
         if (!contactSeries[contact.name]) {
           contactSeries[contact.name] = Highcharts.extend(contact, {
             data: [],
@@ -3683,8 +3699,12 @@ var ll = {
               contact.time
           ]);
       });
+      if(latestContact) minMaxDate = Math.min(latestContact, minMaxDate);
 
+      var latestImportantCode;
       $.each(importantCodes, function(i, event) {
+        if(!latestImportantCode) latestImportantCode = event.time;
+        else latestImportantCode = Math.max(latestImportantCode, event.time);
         if (!eventSeries[event.name]) {
           eventSeries[event.name] = Highcharts.extend(event, {
             data: [],
@@ -3698,6 +3718,8 @@ var ll = {
               event.time
           ]);
       });
+
+      if(latestImportantCode) minMaxDate = Math.min(latestImportantCode, minMaxDate);
 
       series = series.concat(Object.keys(contactSeries).map(function(key) {
         return contactSeries[key];
@@ -3840,15 +3862,19 @@ var ll = {
 
     var plotMeasurements = function(measurements) {
       $(elementId).append($('<div class="chart-title">Patient measurements</div>'));
+      //Make measurements alphabetical so they are always in the same order
+      measurements.sort(function(a,b){
+        if(a.name<b.name) return -1;
+        if(a.name>b.name) return 1;
+        return 0;
+      });
       $.each(measurements, function(i, dataset) {
         ll.charts++;
-        // Add X values
-        /*if (dataset.data && typeof dataset.data[0] !== "object") {
-          dataset.data = Highcharts.map(dataset.data, function(val, j) {
-            return [measurements.xData[j], val];
-          });
-        }*/
-
+        var maxMeasurementDate=0;
+        dataset.data.forEach(function(v){
+          maxMeasurementDate = Math.max(maxMeasurementDate, v[0]);
+        });
+        minMaxDate = Math.min(minMaxDate, maxMeasurementDate);
         var chartOptions = {
           chart: {
             marginLeft: 120, // Keep all charts left aligned
@@ -4229,11 +4255,14 @@ var ll = {
         });
     };
 
+    minMaxDate.setMonth(minMaxDate.getMonth()-1); //gives 1 month padding
+
     plotConditions(data.conditions, data.events, data.contacts);
     plotMeasurements(data.measurements);
     var c = plotMedications(data.medications);
     plotNavigator();
-    c.highcharts().axes[1].setExtremes(1434864000000, 1459814400000, undefined, false, {
+    var today = new Date().getTime();
+    c.highcharts().axes[1].setExtremes(minMaxDate, today, undefined, false, {
       trigger: 'syncExtremes'
     });
 
@@ -4242,8 +4271,8 @@ var ll = {
     var s = syncExtremes.bind(c.highcharts().series[0]);
     s({
       trigger: 'navigator',
-      min: 1434864000000,
-      max: 1459814400000
+      min: minMaxDate,
+      max: today
     });
   }
 
@@ -4407,12 +4436,12 @@ var pl = {
         pList = indicators.opportunities.reduce(function(a, b) {
           return a.patients ? a.patients.concat(b.patients) : a.concat(b.patients);
         });
-        header = data.text[pathwayId][pathwayStage].standards[standard].tableTitle;
+        header = data.text.pathways[pathwayId][pathwayStage].standards[standard].tableTitle;
       }
 
       pList = data.removeDuplicates(pList);
-      var vId = data.text[pathwayId][pathwayStage].standards[standard].valueId;
-      var dOv = data.text[pathwayId][pathwayStage].standards[standard].dateORvalue;
+      var vId = data.text.pathways[pathwayId][pathwayStage].standards[standard].valueId;
+      var dOv = data.text.pathways[pathwayId][pathwayStage].standards[standard].dateORvalue;
       var patients = pList.map(function(patientId) {
         var ret = indicators.patients[patientId];
         ret.nhsNumber = data.patLookup[patientId] || patientId;
@@ -4455,7 +4484,7 @@ var pl = {
       //middle column is either value or date
       if (dOv) {
         localData["header-items"].push({
-          "title": data.text[pathwayId][pathwayStage].standards[standard].valueName,
+          "title": data.text.pathways[pathwayId][pathwayStage].standards[standard].valueName,
           "tooltip": dOv === "date" ? "Last date " + vId + " was measured" : "Last " + vId + " reading",
           "isSorted": false,
           "direction": "sort-asc"
@@ -6335,6 +6364,13 @@ var template = {
 
         layout.showHeaderBarItems();
 
+      } else if (urlBits[0] === "#contact") {
+        base.clearBox();
+        base.selectTab("");
+        layout.showPage('contact-page');
+
+        layout.showHeaderBarItems();
+
       } else if (urlBits[0] === "#patient") {
 
         //create(pathwayId, pathwayStage, standard, patientId)
@@ -6388,7 +6424,7 @@ var template = {
     $('aside a[href="#main/' + disease + '"]:contains("Overview")').parent().addClass('active');
 
     $('#mainTitle').show();
-    base.updateTitle(data.text[data.pathwayId]["display-name"] + ": Overview (practice-level data)");
+    base.updateTitle(data.text.pathways[data.pathwayId]["display-name"] + ": Overview (practice-level data)");
 
     //Show overview panels
     template.showOverviewPanels();
@@ -6441,7 +6477,7 @@ var template = {
         patients.wireUp(pathwayId, pathwayStage, farLeftPanel, standard);
         patientList.populate(pathwayId, pathwayStage, standard, null);
         $('#mainTitle').hide();
-        base.updateTitle(data.text[pathwayId][pathwayStage].text.page.text, data.text[pathwayId][pathwayStage].text.page.tooltip);
+        base.updateTitle(data.text.pathways[pathwayId][pathwayStage].text.page.text, data.text.pathways[pathwayId][pathwayStage].text.page.tooltip);
         $(this).fadeIn(100);
       });
     } else {
@@ -6449,7 +6485,7 @@ var template = {
       patients.wireUp(pathwayId, pathwayStage, farLeftPanel, standard);
       patientList.populate(pathwayId, pathwayStage, standard, null);
       $('#mainTitle').hide();
-      base.updateTitle(data.text[pathwayId][pathwayStage].text.page.text, data.text[pathwayId][pathwayStage].text.page.tooltip);
+      base.updateTitle(data.text.pathways[pathwayId][pathwayStage].text.page.text, data.text.pathways[pathwayId][pathwayStage].text.page.tooltip);
     }
 
     var tempMust = $('#patient-panel-placeholder').html();
@@ -6478,7 +6514,7 @@ var template = {
         patients.wireUpOk(pathwayId, pathwayStage, farLeftPanel);
         patients.populateOk(pathwayId, pathwayStage, null);
         $('#mainTitle').hide();
-        base.updateTitle(data.text[pathwayId][pathwayStage].text.page.text, data.text[pathwayId][pathwayStage].text.page.tooltip);
+        base.updateTitle(data.text.pathways[pathwayId][pathwayStage].text.page.text, data.text.pathways[pathwayId][pathwayStage].text.page.tooltip);
         $(this).fadeIn(300);
       });
       var tempMust = $('#patient-panel-placeholder').html();
@@ -6488,7 +6524,7 @@ var template = {
       patients.wireUpOk(pathwayId, pathwayStage, farLeftPanel);
       patients.populateOk(pathwayId, pathwayStage, null);
       $('#mainTitle').hide();
-      base.updateTitle(data.text[pathwayId][pathwayStage].text.page.text, data.text[pathwayId][pathwayStage].text.page.tooltip);
+      base.updateTitle(data.text.pathways[pathwayId][pathwayStage].text.page.text, data.text.pathways[pathwayId][pathwayStage].text.page.tooltip);
     }
   },
 
@@ -6772,6 +6808,7 @@ buf.push("<p>There are no improvement action suggestions from PINGR because this
 else
 {
 buf.push("<table id=\"individual-suggested-actions-table\" class=\"table\"><thead><tr><th></th><th style=\"width: 105px\"></th></tr></thead><tbody>");
+var alt = false
 // iterate suggestions
 ;(function(){
   var $$obj = suggestions;
@@ -6780,7 +6817,7 @@ buf.push("<table id=\"individual-suggested-actions-table\" class=\"table\"><thea
     for (var $index = 0, $$l = $$obj.length; $index < $$l; $index++) {
       var suggestion = $$obj[$index];
 
-buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.attr("data-team-or-patient-id", suggestion.tpid ? suggestion.tpId : undefined, true, false)) + " class=\"suggestion\"><td><span" + (jade.attr("data-subsection", suggestion.subsection, true, false)) + "><strong class=\"black f20\">" + (null == (jade_interp = suggestion.short) ? "" : jade_interp) + "</strong>");
+buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.attr("data-team-or-patient-id", suggestion.tpid ? suggestion.tpId : undefined, true, false)) + (jade.cls(['suggestion',alt ? 'alternate-row': ''], [null,true])) + "><td><span" + (jade.attr("data-subsection", suggestion.subsection, true, false)) + "><strong class=\"black f20\">" + (null == (jade_interp = suggestion.short) ? "" : jade_interp) + "</strong>");
 if ( suggestion.long || suggestion.reason)
 {
 buf.push("<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show more <i class=\"fa fa-caret-down\"></i></a>");
@@ -6790,7 +6827,7 @@ jade_mixins["thumbs"](suggestion);
 buf.push("</td></tr>");
 if ( suggestion.long)
 {
-buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more-row\"><td colspan=\"2\">" + (null == (jade_interp = suggestion.long) ? "" : jade_interp) + "</td>");
+buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.cls(['show-more-row',alt ? 'alternate-row': ''], [null,true])) + "><td colspan=\"2\">" + (null == (jade_interp = suggestion.long) ? "" : jade_interp) + "</td>");
 if ( !suggestion.reason)
 {
 buf.push("<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a>");
@@ -6799,8 +6836,9 @@ buf.push("</tr>");
 }
 if ( suggestion.reason)
 {
-buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more-row\"><td colspan=\"2\">" + (null == (jade_interp = suggestion.reason) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
+buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.cls(['show-more-row',alt ? 'alternate-row': ''], [null,true])) + "><td colspan=\"2\">" + (null == (jade_interp = suggestion.reason) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
 }
+alt = !alt
     }
 
   } else {
@@ -6808,7 +6846,7 @@ buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"
     for (var $index in $$obj) {
       $$l++;      var suggestion = $$obj[$index];
 
-buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.attr("data-team-or-patient-id", suggestion.tpid ? suggestion.tpId : undefined, true, false)) + " class=\"suggestion\"><td><span" + (jade.attr("data-subsection", suggestion.subsection, true, false)) + "><strong class=\"black f20\">" + (null == (jade_interp = suggestion.short) ? "" : jade_interp) + "</strong>");
+buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.attr("data-team-or-patient-id", suggestion.tpid ? suggestion.tpId : undefined, true, false)) + (jade.cls(['suggestion',alt ? 'alternate-row': ''], [null,true])) + "><td><span" + (jade.attr("data-subsection", suggestion.subsection, true, false)) + "><strong class=\"black f20\">" + (null == (jade_interp = suggestion.short) ? "" : jade_interp) + "</strong>");
 if ( suggestion.long || suggestion.reason)
 {
 buf.push("<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show more <i class=\"fa fa-caret-down\"></i></a>");
@@ -6818,7 +6856,7 @@ jade_mixins["thumbs"](suggestion);
 buf.push("</td></tr>");
 if ( suggestion.long)
 {
-buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more-row\"><td colspan=\"2\">" + (null == (jade_interp = suggestion.long) ? "" : jade_interp) + "</td>");
+buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.cls(['show-more-row',alt ? 'alternate-row': ''], [null,true])) + "><td colspan=\"2\">" + (null == (jade_interp = suggestion.long) ? "" : jade_interp) + "</td>");
 if ( !suggestion.reason)
 {
 buf.push("<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a>");
@@ -6827,8 +6865,9 @@ buf.push("</tr>");
 }
 if ( suggestion.reason)
 {
-buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more-row\"><td colspan=\"2\">" + (null == (jade_interp = suggestion.reason) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
+buf.push("<tr" + (jade.attr("data-id", suggestion.id, true, false)) + (jade.cls(['show-more-row',alt ? 'alternate-row': ''], [null,true])) + "><td colspan=\"2\">" + (null == (jade_interp = suggestion.reason) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", suggestion.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
 }
+alt = !alt
     }
 
   }
@@ -7268,6 +7307,7 @@ var jade_mixins = {};
 var jade_interp;
 ;var locals_for_with = (locals || {});(function (indicators, undefined) {
 buf.push("<div class=\"panel panel-default\"><div class=\"panel-body pastel-pink\"><table class=\"table\"><thead><tr><th>Indicator</th><th>Performance</th><th>Target</th><th>Benchmark</th><th></th><th></th></tr></thead><tbody>");
+var alt=false
 // iterate indicators
 ;(function(){
   var $$obj = indicators;
@@ -7276,7 +7316,7 @@ buf.push("<div class=\"panel panel-default\"><div class=\"panel-body pastel-pink
     for (var $index = 0, $$l = $$obj.length; $index < $$l; $index++) {
       var indicator = $$obj[$index];
 
-buf.push("<tr" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"standard-row\"><td><strong>" + (jade.escape(null == (jade_interp = indicator.name) ? "" : jade_interp)) + "</strong><br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show more <i class=\"fa fa-caret-down\"></i></a></td><td><strong" + (jade.cls([indicator.aboveTarget ? 'text-success' : 'text-danger'], [true])) + ">" + (jade.escape(null == (jade_interp = indicator.performance.percentage + '%') ? "" : jade_interp)) + "</strong><span>" + (jade.escape(null == (jade_interp = ' (' + indicator.performance.fraction + ')') ? "" : jade_interp)) + "</span></td><td>" + (jade.escape(null == (jade_interp = indicator.target) ? "" : jade_interp)) + "</td><td>" + (jade.escape(null == (jade_interp = indicator.benchmark) ? "" : jade_interp)) + "</td><td>");
+buf.push("<tr" + (jade.attr("data-id", indicator.id, true, false)) + (jade.cls(['standard-row',alt ? 'alternate-row': ''], [null,true])) + "><td><strong>" + (jade.escape(null == (jade_interp = indicator.name) ? "" : jade_interp)) + "</strong><br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show more <i class=\"fa fa-caret-down\"></i></a></td><td><strong" + (jade.cls([indicator.aboveTarget ? 'text-success' : 'text-danger'], [true])) + ">" + (jade.escape(null == (jade_interp = indicator.performance.percentage + '%') ? "" : jade_interp)) + "</strong><span>" + (jade.escape(null == (jade_interp = ' (' + indicator.performance.fraction + ')') ? "" : jade_interp)) + "</span></td><td>" + (jade.escape(null == (jade_interp = indicator.target) ? "" : jade_interp)) + "</td><td>" + (jade.escape(null == (jade_interp = indicator.benchmark) ? "" : jade_interp)) + "</td><td>");
 if ( indicator.up)
 {
 buf.push("<i class=\"fa fa-2x fa-caret-up\"></i>");
@@ -7285,7 +7325,8 @@ else
 {
 buf.push("<i class=\"fa fa-2x fa-caret-down\"></i>");
 }
-buf.push("</td><td><span class=\"inlinesparkline\">" + (jade.escape(null == (jade_interp = indicator.trend) ? "" : jade_interp)) + "</span></td></tr><tr" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more-row\"><td colspan=\"6\">" + (null == (jade_interp = indicator.description) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
+buf.push("</td><td><span class=\"inlinesparkline\">" + (jade.escape(null == (jade_interp = indicator.trend) ? "" : jade_interp)) + "</span></td></tr><tr" + (jade.attr("data-id", indicator.id, true, false)) + (jade.cls(['show-more-row',alt ? 'alternate-row': ''], [null,true])) + "><td colspan=\"6\">" + (null == (jade_interp = indicator.description) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
+alt = !alt
     }
 
   } else {
@@ -7293,7 +7334,7 @@ buf.push("</td><td><span class=\"inlinesparkline\">" + (jade.escape(null == (jad
     for (var $index in $$obj) {
       $$l++;      var indicator = $$obj[$index];
 
-buf.push("<tr" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"standard-row\"><td><strong>" + (jade.escape(null == (jade_interp = indicator.name) ? "" : jade_interp)) + "</strong><br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show more <i class=\"fa fa-caret-down\"></i></a></td><td><strong" + (jade.cls([indicator.aboveTarget ? 'text-success' : 'text-danger'], [true])) + ">" + (jade.escape(null == (jade_interp = indicator.performance.percentage + '%') ? "" : jade_interp)) + "</strong><span>" + (jade.escape(null == (jade_interp = ' (' + indicator.performance.fraction + ')') ? "" : jade_interp)) + "</span></td><td>" + (jade.escape(null == (jade_interp = indicator.target) ? "" : jade_interp)) + "</td><td>" + (jade.escape(null == (jade_interp = indicator.benchmark) ? "" : jade_interp)) + "</td><td>");
+buf.push("<tr" + (jade.attr("data-id", indicator.id, true, false)) + (jade.cls(['standard-row',alt ? 'alternate-row': ''], [null,true])) + "><td><strong>" + (jade.escape(null == (jade_interp = indicator.name) ? "" : jade_interp)) + "</strong><br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show more <i class=\"fa fa-caret-down\"></i></a></td><td><strong" + (jade.cls([indicator.aboveTarget ? 'text-success' : 'text-danger'], [true])) + ">" + (jade.escape(null == (jade_interp = indicator.performance.percentage + '%') ? "" : jade_interp)) + "</strong><span>" + (jade.escape(null == (jade_interp = ' (' + indicator.performance.fraction + ')') ? "" : jade_interp)) + "</span></td><td>" + (jade.escape(null == (jade_interp = indicator.target) ? "" : jade_interp)) + "</td><td>" + (jade.escape(null == (jade_interp = indicator.benchmark) ? "" : jade_interp)) + "</td><td>");
 if ( indicator.up)
 {
 buf.push("<i class=\"fa fa-2x fa-caret-up\"></i>");
@@ -7302,7 +7343,8 @@ else
 {
 buf.push("<i class=\"fa fa-2x fa-caret-down\"></i>");
 }
-buf.push("</td><td><span class=\"inlinesparkline\">" + (jade.escape(null == (jade_interp = indicator.trend) ? "" : jade_interp)) + "</span></td></tr><tr" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more-row\"><td colspan=\"6\">" + (null == (jade_interp = indicator.description) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
+buf.push("</td><td><span class=\"inlinesparkline\">" + (jade.escape(null == (jade_interp = indicator.trend) ? "" : jade_interp)) + "</span></td></tr><tr" + (jade.attr("data-id", indicator.id, true, false)) + (jade.cls(['show-more-row',alt ? 'alternate-row': ''], [null,true])) + "><td colspan=\"6\">" + (null == (jade_interp = indicator.description) ? "" : jade_interp) + "<br/><a" + (jade.attr("data-id", indicator.id, true, false)) + " class=\"show-more\">Show less <i class=\"fa fa-caret-up\"></i></a></td></tr>");
+alt = !alt
     }
 
   }
@@ -7740,25 +7782,25 @@ var ind = {
 
       if (!pathwayStage) {
         if (layout.pathwayStage) pathwayStage = layout.pathwayStage;
-        else pathwayStage = Object.keys(data.text[pathwayId])[0];
+        else pathwayStage = Object.keys(data.text.pathways[pathwayId])[0];
       }
 
       if (!standard) {
         if (layout.standard) standard = layout.standard;
-        else standard = Object.keys(data.text[pathwayId][pathwayStage].standards)[0];
+        else standard = Object.keys(data.text.pathways[pathwayId][pathwayStage].standards)[0];
       }
 
       //if (layout.pathwayId !== pathwayId || layout.pathwayStage !== pathwayStage) {
-        //different pathway or stage so title needs updating
-        base.updateTitle(data.text[pathwayId][pathwayStage].standards[standard].name);
-        /*base.updateTitle([{
-          title: "Overview",
-          url: "#overview"
-        }, {
-          title: data.text[pathwayId][pathwayStage].text.page.text,
-          tooltip: data.text[pathwayId][pathwayStage].text.page.tooltip
-        }]);
-        $('#mainTitle').show();*/
+      //different pathway or stage so title needs updating
+      base.updateTitle(data.text.pathways[pathwayId][pathwayStage].standards[standard].name);
+      /*base.updateTitle([{
+        title: "Overview",
+        url: "#overview"
+      }, {
+        title: data.text.pathways[pathwayId][pathwayStage].text.page.text,
+        tooltip: data.text.pathways[pathwayId][pathwayStage].text.page.tooltip
+      }]);
+      $('#mainTitle').show();*/
       //}
 
       layout.pathwayId = pathwayId;
@@ -7772,7 +7814,7 @@ var ind = {
       //Panels decide whether they need to redraw themselves
       teamActionPlan.show(farLeftPanel);
 
-      base.updateTab("indicators", data.text[pathwayId][pathwayStage].standards[standard].tabText, [pathwayId, pathwayStage, standard].join("/"));
+      base.updateTab("indicators", data.text.pathways[pathwayId][pathwayStage].standards[standard].tabText, [pathwayId, pathwayStage, standard].join("/"));
 
       wrapper.show(farRightPanel, false, [
         {
@@ -7799,7 +7841,20 @@ var ind = {
         }
       ], false, "Performance over time");
 
+      if ($('#addedCSS').length === 0) {
+        $('head').append('<style id="addedCSS" type="text/css">.table-scroll {max-height:170px;}');
+      }
+
       base.addFullPage(farRightPanel);
+      /*console.log("WINDOW HEIGHT: " + $(window).height());
+      console.log("TABLE TOP: " + $('.table-scroll').position().top);
+      console.log("CSS: " + Math.floor($(window).height()-$('.table-scroll').position().top-200)+"px");*/
+      $('#addedCSS').text('.table-scroll {max-height:' + Math.floor($(window).height() - $('.table-scroll').position().top - 200) + 'px;}');
+
+      $(window).off('resize').on('resize', function() {
+        var win = $(this); //this = window
+        $('#addedCSS').text('.table-scroll {max-height:' + Math.floor(win.height() - $('.table-scroll').position().top - 200) + 'px;}');
+      });
 
       $('#indicator-pane').show();
 
