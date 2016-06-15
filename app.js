@@ -6358,6 +6358,7 @@ var template = {
         base.wireUpTooltips();
 
       } else if (urlBits[0] === "#help") {
+        layout.view="HELP";
         base.clearBox();
         base.selectTab("");
         layout.showPage('help-page');
@@ -6365,6 +6366,7 @@ var template = {
         layout.showHeaderBarItems();
 
       } else if (urlBits[0] === "#contact") {
+        layout.view="CONTACT";
         base.clearBox();
         base.selectTab("");
         layout.showPage('contact-page');
@@ -7306,7 +7308,7 @@ var buf = [];
 var jade_mixins = {};
 var jade_interp;
 ;var locals_for_with = (locals || {});(function (indicators, undefined) {
-buf.push("<div class=\"panel panel-default\"><div class=\"panel-body pastel-pink\"><table class=\"table\"><thead><tr><th>Indicator</th><th>Performance</th><th>Target</th><th>Benchmark</th><th></th><th></th></tr></thead><tbody>");
+buf.push("<div class=\"panel panel-default\"><div class=\"panel-body pastel-pink\"><table class=\"table\"><thead><tr><th>Indicator</th><th>Performance</th><th>Target</th><th>Benchmark</th><th>Change</th><th>Trend</th></tr></thead><tbody>");
 var alt=false
 // iterate indicators
 ;(function(){
