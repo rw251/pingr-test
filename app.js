@@ -2033,6 +2033,17 @@ var log = {
       obj.actions[id] = {};
     }
 
+    var dataToSend = {
+      event: {
+        what: "agree",
+        when: new Date().getTime(),
+        who: JSON.parse(localStorage.bb).email,
+        detail: [
+          { key: "patient", "value": id },
+          { key: "action", "value": actionId }
+          ]
+      }
+    };
 
     if (agree) {
       logText = "You agreed with this suggested action on " + (new Date()).toDateString();
@@ -2040,19 +2051,12 @@ var log = {
       var reasonText = log.reason.reason === "" && log.reason.reasonText === "" ? " - no reason given" : " . You disagreed because you said: '" + log.reason.reason + "; " + log.reason.reasonText + ".'";
       logText = "You disagreed with this action on " + (new Date()).toDateString() + reasonText;
 
-      var dataToSend = {
-        event: {
-          what: "disagree",
-          when: new Date().getTime(),
-          who: JSON.parse(localStorage.bb).email,
-          detail: [
-            { key: "patient", "value": id },
-            { key: "action", "value": actionId }
-            ]
-        }
-      };
+      dataToSend.event.whate = "disagree";
       if(reason && reason.reason) dataToSend.event.detail.push(  { key: "reason", value: reason.reason });
       if(reason && reason.reasonText) dataToSend.event.detail.push(  { key: "reasonText", value: reason.reasonText });
+    }
+
+    if(agree || agree===false){
       console.log(dataToSend);
       $.ajax({
         type: "POST",
@@ -4560,8 +4564,8 @@ var pl = {
 
       //add qual standard column
       localData["header-items"].push({
-        "title": "Improvement Opportunities",
-        "titleHTML": 'Improvement Opportunities',
+        "title": "Improvement opportunities",
+        "titleHTML": 'Improvement opportunities',
         "isSorted": true,
         "tooltip": "Improvement opportunities from the bar chart above"
       });
@@ -7324,7 +7328,7 @@ var buf = [];
 var jade_mixins = {};
 var jade_interp;
 ;var locals_for_with = (locals || {});(function (text) {
-buf.push("<div tabindex=\"-1\" role=\"dialog\" aria-labelledby=\"modalLabel\" aria-hidden=\"true\" class=\"modal fade\"><div class=\"modal-dialog modal-dialog-top\"><div class=\"modal-content\"><div class=\"modal-header\"><button type=\"button\" data-dismiss=\"modal\" aria-label=\"Close\" class=\"close\"><span aria-hidden=\"true\">×</span></button><h4 id=\"modalLabel\" class=\"modal-title\">Suggestions, comments and bugs</h4></div><div class=\"modal-body\"><form><div class=\"form-group\"><label>" + (jade.escape(null == (jade_interp = 'Please send us any suggestions, comments or bugs you find with the system.') ? "" : jade_interp)) + "</label><div class=\"text-danger\">But please don't send us any patient identifiable information - e.g. NHS number, name, date of birth.</div><textarea rows=\"10\" style=\"resize:none\" class=\"form-control\">" + (jade.escape(null == (jade_interp = text) ? "" : jade_interp)) + "</textarea></div><button type=\"submit\" class=\"btn btn-primary save-plan\">Send</button><button type=\"button\" data-dismiss=\"modal\" class=\"btn btn-default\">Cancel</button></form></div><div class=\"modal-footer\"></div></div></div></div>");}.call(this,"text" in locals_for_with?locals_for_with.text:typeof text!=="undefined"?text:undefined));;return buf.join("");
+buf.push("<div tabindex=\"-1\" role=\"dialog\" aria-labelledby=\"modalLabel\" aria-hidden=\"true\" class=\"modal fade\"><div class=\"modal-dialog modal-dialog-top\"><div class=\"modal-content\"><div class=\"modal-header\"><button type=\"button\" data-dismiss=\"modal\" aria-label=\"Close\" class=\"close\"><span aria-hidden=\"true\">×</span></button><h4 id=\"modalLabel\" class=\"modal-title\">Suggestions, comments and bugs</h4></div><div class=\"modal-body\"><form><div class=\"form-group\"><label>" + (jade.escape(null == (jade_interp = 'Please send us any suggestions, comments or bugs you find with PINGR.') ? "" : jade_interp)) + "</label><div class=\"italic\">This could be problems with the data or ideas on how we could improve it</div><div class=\"text-danger small\">But please don't send us any patient identifiable information - e.g. NHS number, name, date of birth.</div><textarea rows=\"10\" style=\"resize:none\" class=\"form-control\">" + (jade.escape(null == (jade_interp = '===========\nThis text tells us which part of PINGR you’re referring to – please don’t delete it!\n' + text) ? "" : jade_interp)) + "</textarea></div><button type=\"submit\" class=\"btn btn-primary save-plan\">Send</button><button type=\"button\" data-dismiss=\"modal\" class=\"btn btn-default\">Cancel</button></form></div><div class=\"modal-footer\"></div></div></div></div>");}.call(this,"text" in locals_for_with?locals_for_with.text:typeof text!=="undefined"?text:undefined));;return buf.join("");
 };
 if (typeof define === 'function' && define.amd) {
   define([], function() {
@@ -8101,7 +8105,7 @@ var pv = {
       base.hidePanels(farLeftPanel);
 
       if (patientId) {
-        lookup.suggestionModalText = "Screen: Patient\nPatient ID: " + patientId + "  - NB this helps us identify the patient but is NOT their NHS number. Please don't send NHS numbers of other identifiable information via this form.\n===========\n";
+        lookup.suggestionModalText = "Screen: Patient\nPatient ID: " + patientId + "  - NB this helps us identify the patient but is NOT their NHS number.\n===========\n";
 
         data.getPatientData(patientId, function(patientData) {
 
