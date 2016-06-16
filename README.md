@@ -1,1 +1,1 @@
-# pingr-test
+# PINGR

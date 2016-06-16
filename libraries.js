@@ -6941,8 +6941,8 @@ require.register("zeroclipboard/dist/ZeroClipboard.js", function(exports, requir
 }());
   })();
 });
-require.alias("zeroclipboard/dist/ZeroClipboard.js", "zeroclipboard");
 require.alias("mustache/mustache.js", "mustache");
+require.alias("zeroclipboard/dist/ZeroClipboard.js", "zeroclipboard");
 require.alias("jquery-sparkline/jquery.sparkline.js", "jquery-sparkline");require.register("___globals___", function(exports, require, module) {
   
 });})();require('___globals___');
