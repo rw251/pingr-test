@@ -2068,11 +2068,11 @@ var log = {
       logText = "You disagreed with this action on " + (new Date()).toDateString() + reasonText;
 
       dataToSend.event.whate = "disagree";
-      if(reason && reason.reason) dataToSend.event.detail.push(  { key: "reason", value: reason.reason });
-      if(reason && reason.reasonText) dataToSend.event.detail.push(  { key: "reasonText", value: reason.reasonText });
+      if (reason && reason.reason) dataToSend.event.detail.push({ key: "reason", value: reason.reason });
+      if (reason && reason.reasonText) dataToSend.event.detail.push({ key: "reasonText", value: reason.reasonText });
     }
 
-    if(agree || agree===false){
+    if (agree || agree === false) {
       console.log(dataToSend);
       $.ajax({
         type: "POST",
@@ -2202,15 +2202,15 @@ var log = {
         when: new Date().getTime(),
         who: JSON.parse(localStorage.bb).email,
         detail: [
-          { key: "text", value: text },
-          { key: "pathwayId", value: pathwayId }
+          { key: "text", value: text }
           ]
       }
     };
-    if(id==="team"){
-      dataToSend.event.what="recordTeamPlan";
+    if (id === "team") {
+      dataToSend.event.what = "recordTeamPlan";
+      dataToSend.event.detail.push({ key: "pathwayId", value: pathwayId });
     } else {
-      dataToSend.event.detail.push({ key: "patientId", value: id});
+      dataToSend.event.detail.push({ key: "patientId", value: id });
     }
 
     console.log(dataToSend);
