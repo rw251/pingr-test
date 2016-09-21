@@ -7046,7 +7046,7 @@ var ind = {
         farRightPanel.append(tabContent);
 
         // *B* 1st tabbed panel
-        wrapper.showTab(tabContent, tabList, "Overview", [
+        wrapper.showTab(tabContent, tabList, "Improvement opportunities", [
           {
             show: indicatorHeadlines.show,
             args: [pathwayId, pathwayStage, standard]
@@ -7061,7 +7061,7 @@ var ind = {
        ], true);
 
   	    // *B* 2nd tabbed panel
-        wrapper.showTab(tabContent, tabList, "Indicator", [
+        wrapper.showTab(tabContent, tabList, "Current and future trend", [
           {
             show: indicatorTrend.show,
             args: [pathwayId, pathwayStage, standard]
@@ -7069,7 +7069,7 @@ var ind = {
         ], false);
 
   	     // *B* 3rd tabbed panel
-        wrapper.showTab(tabContent, tabList, "Patient", [
+        wrapper.showTab(tabContent, tabList, "Comparison to other practices", [
           {
             show: indicatorBenchmark.show,
             args: [pathwayId, pathwayStage, standard]
